@@ -34,7 +34,12 @@ Last updated: 2026-10-21 · v2.0.0 line
 - [x] Themed icons switch through the same provider (`/set_icon_themed`).
 - [x] App grid picker: reads `/list_options`, applies `/default_grid`, so the
       in-app list always matches the grids built into the module.
-- [x] App drawer → Two-line app labels switch. Writes
+- [x] App drawer switches: two-line app labels, keyboard on search, search
+      hidden apps, web suggestions.
+- [x] Home screen switches: add icon to Home screen, Minus One page.
+- [x] Recents switch: overview action suggestions.
+- [x] All of the above write `com.android.launcher3.prefs.xml` (see below).
+- [x] Two-line app labels switch. Writes
       `pref_enable_two_line_toggle` into the launcher's own
       `com.android.launcher3.prefs.xml` (the file its settings screen uses),
       stopping the launcher first so it cannot flush a stale value back.

@@ -22,8 +22,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.List
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
@@ -40,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -75,7 +78,7 @@ fun PETweaksApp() {
     var themedIcons by remember { mutableStateOf<Boolean?>(null) }
     var labelsHidden by remember { mutableStateOf<Boolean?>(null) }
     var gridTitle by remember { mutableStateOf<String?>(null) }
-    var twoLineLabels by remember { mutableStateOf(false) }
+    val prefValues = remember { mutableStateMapOf<String, Boolean>() }
     var moduleVersion by remember { mutableStateOf<String?>(null) }
     var moduleInstalled by remember { mutableStateOf<Boolean?>(null) }
 
@@ -90,7 +93,8 @@ fun PETweaksApp() {
             themedIcons = info.themedIcons
             labelsHidden = info.labelsHidden
             gridTitle = info.gridTitle
-            twoLineLabels = info.twoLineLabels
+            prefValues.clear()
+            prefValues.putAll(info.prefValues)
             moduleVersion = info.moduleVersion
             moduleInstalled = info.moduleInstalled
         }
@@ -120,17 +124,12 @@ fun PETweaksApp() {
         }
     }
 
-    fun setTwoLineLabels(enabled: Boolean) {
+    fun setPref(key: String, enabled: Boolean) {
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                RootShell.setBooleanPref(RootShell.PREF_TWO_LINE_LABELS, enabled)
-            }
+            val result = withContext(Dispatchers.IO) { RootShell.setBooleanPref(key, enabled) }
             if (result.ok) {
-                twoLineLabels = enabled
-                snackbar.showSnackbar(
-                    (if (enabled) "Two-line labels on" else "Two-line labels off") +
-                        " · press Home to reload",
-                )
+                prefValues[key] = enabled
+                snackbar.showSnackbar("Applied · press Home to reload")
             } else {
                 snackbar.showSnackbar("Failed. Allow root access in your manager.")
             }
@@ -162,7 +161,7 @@ fun PETweaksApp() {
                 themedIcons = themedIcons,
                 labelsHidden = labelsHidden,
                 gridTitle = gridTitle,
-                twoLineLabels = twoLineLabels,
+                prefValues = prefValues,
                 moduleVersion = moduleVersion,
                 moduleInstalled = moduleInstalled,
                 snackbar = snackbar,
@@ -170,7 +169,7 @@ fun PETweaksApp() {
                 onLabelsChanged = ::setLabels,
                 onThemedChanged = ::setThemed,
                 onOpenGrids = { screen = Screen.Grids },
-                onTwoLineChanged = ::setTwoLineLabels,
+                onPrefChanged = ::setPref,
                 onRestart = { runRootAction("Launcher restarted", RootShell::restartLauncher) },
                 onClearCache = { runRootAction("Icon cache cleared", RootShell::clearIconCache) },
                 onRefresh = {
@@ -208,7 +207,7 @@ private fun HomeScreen(
     themedIcons: Boolean?,
     labelsHidden: Boolean?,
     gridTitle: String?,
-    twoLineLabels: Boolean,
+    prefValues: Map<String, Boolean>,
     moduleVersion: String?,
     moduleInstalled: Boolean?,
     snackbar: SnackbarHostState,
@@ -216,7 +215,7 @@ private fun HomeScreen(
     onLabelsChanged: (Boolean) -> Unit,
     onThemedChanged: (Boolean) -> Unit,
     onOpenGrids: () -> Unit,
-    onTwoLineChanged: (Boolean) -> Unit,
+    onPrefChanged: (String, Boolean) -> Unit,
     onRestart: () -> Unit,
     onClearCache: () -> Unit,
     onRefresh: () -> Unit,
@@ -314,6 +313,34 @@ private fun HomeScreen(
                             )
                         },
                     )
+                    SettingRow(
+                        title = "Add icon to Home screen",
+                        subtitle = "Place a shortcut when a new app is installed",
+                        icon = Icons.Rounded.Add,
+                        trailing = {
+                            Switch(
+                                checked = prefValues[RootShell.PREF_ADD_ICON_TO_HOME] ?: true,
+                                onCheckedChange = {
+                                    onPrefChanged(RootShell.PREF_ADD_ICON_TO_HOME, it)
+                                },
+                                enabled = hasRoot == true,
+                            )
+                        },
+                    )
+                    SettingRow(
+                        title = "Minus One page",
+                        subtitle = "Swipe left from the first page into Discover",
+                        icon = Icons.Rounded.Info,
+                        trailing = {
+                            Switch(
+                                checked = prefValues[RootShell.PREF_MINUS_ONE] ?: true,
+                                onCheckedChange = {
+                                    onPrefChanged(RootShell.PREF_MINUS_ONE, it)
+                                },
+                                enabled = hasRoot == true,
+                            )
+                        },
+                    )
                 }
             }
 
@@ -326,8 +353,72 @@ private fun HomeScreen(
                         icon = Icons.Rounded.List,
                         trailing = {
                             Switch(
-                                checked = twoLineLabels,
-                                onCheckedChange = onTwoLineChanged,
+                                checked = prefValues[RootShell.PREF_TWO_LINE_LABELS] ?: false,
+                                onCheckedChange = {
+                                    onPrefChanged(RootShell.PREF_TWO_LINE_LABELS, it)
+                                },
+                                enabled = hasRoot == true,
+                            )
+                        },
+                    )
+                    SettingRow(
+                        title = "Show keyboard when searching",
+                        subtitle = "Open the keyboard as soon as search is focused",
+                        icon = Icons.Rounded.Search,
+                        trailing = {
+                            Switch(
+                                checked = prefValues[RootShell.PREF_SEARCH_KEYBOARD] ?: false,
+                                onCheckedChange = {
+                                    onPrefChanged(RootShell.PREF_SEARCH_KEYBOARD, it)
+                                },
+                                enabled = hasRoot == true,
+                            )
+                        },
+                    )
+                    SettingRow(
+                        title = "Search hidden apps",
+                        subtitle = "Include apps hidden from the drawer in search results",
+                        icon = Icons.Rounded.Search,
+                        trailing = {
+                            Switch(
+                                checked = prefValues[RootShell.PREF_SEARCH_HIDDEN] ?: false,
+                                onCheckedChange = {
+                                    onPrefChanged(RootShell.PREF_SEARCH_HIDDEN, it)
+                                },
+                                enabled = hasRoot == true,
+                            )
+                        },
+                    )
+                    SettingRow(
+                        title = "Web suggestions",
+                        subtitle = "Show Google web suggestions in drawer search",
+                        icon = Icons.Rounded.Search,
+                        trailing = {
+                            Switch(
+                                checked = prefValues[RootShell.PREF_WEB_SUGGESTIONS] ?: true,
+                                onCheckedChange = {
+                                    onPrefChanged(RootShell.PREF_WEB_SUGGESTIONS, it)
+                                },
+                                enabled = hasRoot == true,
+                            )
+                        },
+                    )
+                }
+            }
+
+            item { SectionHeader("Recents") }
+            item {
+                SettingCard {
+                    SettingRow(
+                        title = "Overview suggestions",
+                        subtitle = "Offer actions like share and screenshot in Recents",
+                        icon = Icons.Rounded.Info,
+                        trailing = {
+                            Switch(
+                                checked = prefValues[RootShell.PREF_OVERVIEW_SUGGESTIONS] ?: true,
+                                onCheckedChange = {
+                                    onPrefChanged(RootShell.PREF_OVERVIEW_SUGGESTIONS, it)
+                                },
                                 enabled = hasRoot == true,
                             )
                         },

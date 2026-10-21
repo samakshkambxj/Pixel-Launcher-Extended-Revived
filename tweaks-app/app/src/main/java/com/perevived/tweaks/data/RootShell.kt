@@ -16,7 +16,8 @@ data class LauncherState(
     val moduleVersion: String?,
     val moduleInstalled: Boolean,
     val gridTitle: String?,
-    val twoLineLabels: Boolean,
+    /** Raw values of every launcher preference the app can switch. */
+    val prefValues: Map<String, Boolean>,
 )
 
 /** One entry from the launcher's grid options list. */
@@ -112,7 +113,9 @@ object RootShell {
             moduleVersion = version,
             moduleInstalled = installed,
             gridTitle = grids.firstOrNull { it.isDefault }?.title,
-            twoLineLabels = readPrefFromXml(prefsXml, PREF_TWO_LINE_LABELS) ?: false,
+            prefValues = KNOWN_PREFS.mapNotNull { key ->
+                readPrefFromXml(prefsXml, key)?.let { key to it }
+            }.toMap(),
         )
     }
 
@@ -228,4 +231,20 @@ object RootShell {
         "/data/user/0/$LAUNCHER_PKG/shared_prefs/com.android.launcher3.prefs.xml"
 
     const val PREF_TWO_LINE_LABELS = "pref_enable_two_line_toggle"
+    const val PREF_SEARCH_KEYBOARD = "pref_search_show_keyboard"
+    const val PREF_SEARCH_HIDDEN = "pref_search_show_hidden_targets"
+    const val PREF_MINUS_ONE = "pref_enable_minus_one"
+    const val PREF_ADD_ICON_TO_HOME = "pref_add_icon_to_home"
+    const val PREF_WEB_SUGGESTIONS = "pref_allowWebResult"
+    const val PREF_OVERVIEW_SUGGESTIONS = "pref_overview_action_suggestions"
+
+    val KNOWN_PREFS = listOf(
+        PREF_TWO_LINE_LABELS,
+        PREF_SEARCH_KEYBOARD,
+        PREF_SEARCH_HIDDEN,
+        PREF_MINUS_ONE,
+        PREF_ADD_ICON_TO_HOME,
+        PREF_WEB_SUGGESTIONS,
+        PREF_OVERVIEW_SUGGESTIONS,
+    )
 }
