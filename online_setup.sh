@@ -150,6 +150,15 @@ install_icon_shapes() {
   done
 }
 
+# Companion app: icon-shape picker and launcher tools. Installed as a user
+# app so it survives module updates and can request root on demand.
+install_tweaks_app() {
+  if [ -f "$MODPATH/apps/PE-Tweaks.apk" ]; then
+    ui_print "Installing PE Tweaks app..."
+    pm install -r "$MODPATH/apps/PE-Tweaks.apk" >/dev/null 2>&1
+  fi
+}
+
 ############
 # Main
 ############
@@ -355,6 +364,8 @@ init_main() {
   ui_print "Downloading Themed Icons..."
   ui_print ""
   download_file "$PLE_BASE_URL/system/product/overlay/ThemedIconsOverlay/ThemedIconsOverlay.apk" "$MODPATH/system/product/overlay/ThemedIconsOverlay/ThemedIconsOverlay.apk"
+
+  install_tweaks_app
 
   ui_print "[*] Clearing system cache to make it work properly..."
   ui_print ""

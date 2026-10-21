@@ -3,3 +3,14 @@ Pixel Launcher Extended*.zip
 PE-Revived*.zip
 setup.sh
 customize.sh
+
+# Gradle / Android build outputs
+tweaks-app/.gradle/
+tweaks-app/.kotlin/
+tweaks-app/build/
+tweaks-app/app/build/
+tweaks-app/local.properties
+tweaks-app/*.apk
+
+# Legacy smali app sources (superseded by the Compose app)
+tweaks-app-legacy/

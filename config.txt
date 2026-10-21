@@ -2,6 +2,6 @@
 LAUNCHER=1
 # Launcher Mods is discontinued upstream; 0 skips it
 Pixel_Launcher_Mods_App=0
-# Extra icon shape overlays (picked via system Icons settings)
+# Extra icon shape overlays (apply with the PE Tweaks app or the module WebUI)
 Icon_Shapes=1
 # Don't modify anything after this

@@ -20,7 +20,7 @@ jobs:
           cp offline_setup.sh setup.sh
           cp offline_setup.sh customize.sh
           zip -r -q "PE-Revived-offline-${GITHUB_REF_NAME}.zip" . \
-            -x '.git/*' 'Modifications/*' 'screenshots/*' \
+            -x '.git/*' 'tweaks-app/*' 'Modifications/*' 'screenshots/*' \
             'builder.sh' 'builder_dependencies.sh' \
             'banner.jpg' 'banner2.jpg' 'changelog.md' 'logo.png' \
             'online_setup.sh' 'offline_setup.sh' 'manual_setup.sh' 'config.txt' \
@@ -35,7 +35,7 @@ jobs:
           cp online_setup.sh setup.sh
           cp online_setup.sh customize.sh
           zip -r -q "PE-Revived-online-${GITHUB_REF_NAME}.zip" . \
-            -x '.git/*' 'Modifications/*' 'screenshots/*' \
+            -x '.git/*' 'tweaks-app/*' 'Modifications/*' 'screenshots/*' \
             'builder.sh' 'builder_dependencies.sh' \
             'banner.jpg' 'banner2.jpg' 'changelog.md' 'logo.png' \
             'offline_setup.sh' 'customize_setup.sh' 'online_setup.sh' 'manual_setup.sh' \
@@ -57,7 +57,7 @@ jobs:
           cp manual_setup.sh setup.sh
           cp manual_setup.sh customize.sh
           zip -r -q "PE-Revived-manual-${GITHUB_REF_NAME}.zip" . \
-            -x '.git/*' 'Modifications/*' 'screenshots/*' \
+            -x '.git/*' 'tweaks-app/*' 'Modifications/*' 'screenshots/*' \
             'builder.sh' 'builder_dependencies.sh' \
             'banner.jpg' 'banner2.jpg' 'changelog.md' 'logo.png' \
             'online_setup.sh' 'offline_setup.sh' 'manual_setup.sh' \

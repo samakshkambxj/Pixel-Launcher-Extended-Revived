@@ -47,6 +47,11 @@
 ### Backup and restore
 - Home layout, app drawer layout, and settings backup/restore
 
+### Companion app
+- PE Tweaks app with Material 3 Expressive UI
+- Icon shape picker with live previews, applied to home screen and drawer
+- Root and module status, launcher restart, icon cache rebuild
+
 ### Launcher internals
 - Hidden flags, developer options
 - New Wallpaper picker, Themes stub, Recents provider
@@ -75,7 +80,8 @@
 | Hide apps, hidden search, popup toggle | ❌ |
 | Themed icons and packs | ✅ |
 | Icon packs with fallback, per-app icons | ❌ |
-| Extra icon shapes (WebUI picker) | ✅ |
+| Extra icon shapes (app + WebUI picker) | ✅ |
+| PE Tweaks companion app | ✅ |
 | Custom shape / size / text size | ❌ |
 | Rename apps, shortcut icons, badge | ❌ |
 | Popup edit / kill / uninstall | ❌ |
@@ -122,15 +128,16 @@
 2. Download a zip from [Releases](https://github.com/samakshkambxj/PE-Revived/releases) (built automatically on every version tag).
 3. Flash in Magisk / KernelSU and answer the volume-key prompts (Up = switch, Down = confirm). If your keys don't register, the installer aborts — use the Manual or Customize variant instead.
 4. Reboot. Set **Pixel Launcher Extended** as Home in Settings > Apps > Default apps.
-5. KernelSU users: in the manager's **App Profiles**, make sure **Unmount modules is OFF** for Pixel Launcher (and the wallpaper app), or the module's files stay invisible to the launcher. Grant root when companion apps ask.
+5. Open **PE Tweaks** and grant root when asked (Icons → Shape to pick an icon shape).
+6. KernelSU users: in the manager's **App Profiles**, make sure **Unmount modules is OFF** for Pixel Launcher (and the wallpaper app), or the module's files stay invisible to the launcher. Grant root when companion apps ask.
 
 ## Variants
 - **Offline Installer** (50+ MB): everything inside, no internet needed while flashing, volume-key choices.
-- **Online Installer** (<5 MB): downloads only what you pick, needs internet while flashing.
+- **Online Installer** (<10 MB): downloads only what you pick, needs internet while flashing (includes the PE Tweaks app).
 - **Customize Installer**: you pre-pick the options when building the zip (no volume keys at flash time). Good for broken keys.
 - **Manual Installer** (50+ MB): like offline, but options come from editing `config.txt` in the zip (see `manual_installer_instructions.md`).
 
-During flashing you choose: At a Glance greetings styles, Launcher Mods app, extra icon shapes.
+During flashing you choose: At a Glance greetings styles, Launcher Mods app, extra icon shapes. The **PE Tweaks** app is installed automatically — open it and go to **Icons → Shape** to pick a shape.
 
 ## Double Tap to Sleep
 Built into Android 17 — enable the system's double-tap option and it works on the home screen with no module or LSPosed needed.
