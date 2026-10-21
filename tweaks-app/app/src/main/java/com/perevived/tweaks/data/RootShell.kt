@@ -171,9 +171,9 @@ object RootShell {
             else
               sed -i "s|<map */>|<map><boolean name=\"$key\" value=\"$flag\" /></map>|" "${'$'}F"
             fi
-            chown "${'$'}OWN" "${'$'}F"
-            chmod 600 "${'$'}F"
-            [ -n "${'$'}CTX" ] && chcon "${'$'}CTX" "${'$'}F"
+            if [ -n "${'$'}OWN" ]; then chown "${'$'}OWN" "${'$'}F"; fi
+            chmod 600 "${'$'}F" 2>/dev/null
+            if [ -n "${'$'}CTX" ]; then chcon "${'$'}CTX" "${'$'}F" 2>/dev/null || true; fi
             grep -o "name=\"$key\" value=\"[a-z]*\"" "${'$'}F"
         """.trimIndent()
         return su(script)

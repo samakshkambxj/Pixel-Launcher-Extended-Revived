@@ -13,6 +13,7 @@
 - Free widget resizing
 - Wallpaper zooming toggle
 - Icon labels on desktop
+- Add icon to Home and Minus One switches
 - Hide status bar, top shadow, page indicator (with dark variants)
 - Hide At a Glance
 - Disable dock, dock spacing
@@ -26,6 +27,7 @@
 - Icon labels in drawer, drawer background opacity
 - Hide scrollbar, search bar toggle
 - Hide apps from drawer, search hidden apps, popup toggle
+- Two-line labels, keyboard on search, hidden-app search, web suggestions
 
 ### Icons
 - 1250+ themed icons, themed icon packs, force custom colors
@@ -40,6 +42,7 @@
 - Double-tap and pinch actions, hide gesture indicator and nav space
 
 ### Recents
+- Overview suggestions switch
 - Live tile toggle, kill / uninstall / lock apps in recents
 - Freeform gesture, clear-all button, fixed width, no screenshot button
 - Selection toggle, memory info, background opacity
@@ -50,6 +53,7 @@
 ### Companion app
 - PE Tweaks app with Material 3 Expressive UI
 - Icon shape picker with live previews, applied to home screen and drawer
+- Launcher switches, app grid picker, drawer and home options
 - Root and module status, launcher restart, icon cache rebuild
 
 ### Launcher internals
@@ -77,6 +81,8 @@
 | App drawer columns and row height | ✅ (shared with home grid) |
 | Drawer tabs, quick launch | ❌ |
 | Icon labels in drawer, opacity, scrollbar, search | ❌ |
+| Drawer switches: two-line labels, keyboard, hidden apps, web | ✅ |
+| Add icon to Home, Minus One, overview suggestions | ✅ |
 | Hide apps, hidden search, popup toggle | ❌ |
 | Themed icons and packs | ✅ |
 | Icon packs with fallback, per-app icons | ❌ |
