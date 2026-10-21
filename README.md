@@ -67,7 +67,7 @@
 | Lock layout | ❌ |
 | Free widget resizing | ❌ |
 | Wallpaper zooming toggle | ❌ |
-| Icon labels on desktop | ❌ |
+| Icon labels on desktop | ✅ (PE Tweaks toggle) |
 | Hide status bar / shadow / indicator | ❌ |
 | Hide At a Glance | ❌ |
 | Disable dock / spacing | ❌ |

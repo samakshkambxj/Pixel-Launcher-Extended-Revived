@@ -29,6 +29,15 @@ Last updated: 2026-10-21 · v2.0.0 line
       force-stop launcher, so home screen and drawer both update.
 - [x] Status section: root, applied shape, themed-icon overlay, module version.
 - [x] Install the app from all four installers.
+- [x] Home screen → Desktop icon labels switch, through the launcher's
+      `grid_control` provider (`/set_workspace_items_label_hidden`).
+- [x] Themed icons switch through the same provider (`/set_icon_themed`).
+- [x] App grid picker: reads `/list_options`, applies `/default_grid`, so the
+      in-app list always matches the grids built into the module.
+- [x] App drawer → Two-line app labels switch. Writes
+      `pref_enable_two_line_toggle` into the launcher's own
+      `com.android.launcher3.prefs.xml` (the file its settings screen uses),
+      stopping the launcher first so it cannot flush a stale value back.
 - [ ] Device pass: verify root prompt, selection read-back, and that a shape
       survives a real reboot.
 - [ ] WebUI: link to the app when installed, keep the shape picker as fallback.
@@ -43,6 +52,18 @@ Approach:
    and value format (for example `idp_grid_name`).
 2. Expose it in PE Tweaks, write the pref as root, force-stop the launcher.
 3. Ship only after the toggle both applies and reverts cleanly.
+
+Verified paths (Android 17 build):
+
+- Provider `content://com.google.android.apps.nexuslauncher.grid_control`:
+  `/workspace_items_label_hidden` (read), `/set_workspace_items_label_hidden`,
+  `/icon_themed`, `/set_icon_themed`, `/list_options`, `/default_grid`.
+  Root (`UID 0`) passes the provider's permission check, so no signature is
+  needed.
+- `com.android.launcher3.prefs.xml` in the launcher's CE data directory is the
+  same file its settings screen writes (`SettingsActivity` points the
+  preference manager at `com.android.launcher3.prefs`). Plain XML booleans.
+  Force-stop → edit → restore owner/SELinux label → let the user press Home.
 
 Candidates, in order of confidence:
 

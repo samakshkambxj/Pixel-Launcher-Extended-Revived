@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.List
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
@@ -34,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,7 +65,7 @@ import kotlinx.coroutines.withContext
 import android.content.Intent
 import android.net.Uri
 
-private enum class Screen { Home, Shapes }
+private enum class Screen { Home, Shapes, Grids }
 
 @Composable
 fun PETweaksApp() {
@@ -71,6 +73,9 @@ fun PETweaksApp() {
     var hasRoot by remember { mutableStateOf<Boolean?>(null) }
     var currentShape by remember { mutableStateOf<IconShape?>(null) }
     var themedIcons by remember { mutableStateOf<Boolean?>(null) }
+    var labelsHidden by remember { mutableStateOf<Boolean?>(null) }
+    var gridTitle by remember { mutableStateOf<String?>(null) }
+    var twoLineLabels by remember { mutableStateOf(false) }
     var moduleVersion by remember { mutableStateOf<String?>(null) }
     var moduleInstalled by remember { mutableStateOf<Boolean?>(null) }
 
@@ -83,8 +88,52 @@ fun PETweaksApp() {
             hasRoot = info.hasRoot
             currentShape = Shapes.byPackage(info.shapePackage ?: "")
             themedIcons = info.themedIcons
+            labelsHidden = info.labelsHidden
+            gridTitle = info.gridTitle
+            twoLineLabels = info.twoLineLabels
             moduleVersion = info.moduleVersion
             moduleInstalled = info.moduleInstalled
+        }
+    }
+
+    fun setLabels(hidden: Boolean) {
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { RootShell.setLabelsHidden(hidden) }
+            if (result.ok) {
+                labelsHidden = hidden
+                snackbar.showSnackbar(if (hidden) "Icon labels hidden" else "Icon labels shown")
+            } else {
+                snackbar.showSnackbar("Failed. Allow root access in your manager.")
+            }
+        }
+    }
+
+    fun setThemed(enabled: Boolean) {
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { RootShell.setThemedIcons(enabled) }
+            if (result.ok) {
+                themedIcons = enabled
+                snackbar.showSnackbar(if (enabled) "Themed icons on" else "Themed icons off")
+            } else {
+                snackbar.showSnackbar("Failed. Allow root access in your manager.")
+            }
+        }
+    }
+
+    fun setTwoLineLabels(enabled: Boolean) {
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                RootShell.setBooleanPref(RootShell.PREF_TWO_LINE_LABELS, enabled)
+            }
+            if (result.ok) {
+                twoLineLabels = enabled
+                snackbar.showSnackbar(
+                    (if (enabled) "Two-line labels on" else "Two-line labels off") +
+                        " · press Home to reload",
+                )
+            } else {
+                snackbar.showSnackbar("Failed. Allow root access in your manager.")
+            }
         }
     }
 
@@ -111,15 +160,31 @@ fun PETweaksApp() {
                 hasRoot = hasRoot,
                 currentShape = currentShape,
                 themedIcons = themedIcons,
+                labelsHidden = labelsHidden,
+                gridTitle = gridTitle,
+                twoLineLabels = twoLineLabels,
                 moduleVersion = moduleVersion,
                 moduleInstalled = moduleInstalled,
                 snackbar = snackbar,
                 onOpenShapes = { screen = Screen.Shapes },
+                onLabelsChanged = ::setLabels,
+                onThemedChanged = ::setThemed,
+                onOpenGrids = { screen = Screen.Grids },
+                onTwoLineChanged = ::setTwoLineLabels,
                 onRestart = { runRootAction("Launcher restarted", RootShell::restartLauncher) },
                 onClearCache = { runRootAction("Icon cache cleared", RootShell::clearIconCache) },
                 onRefresh = {
                     hasRoot = null
                     refresh()
+                },
+            )
+
+            Screen.Grids -> GridsScreen(
+                snackbar = snackbar,
+                onBack = { screen = Screen.Home },
+                onApplied = { grid ->
+                    gridTitle = grid.title
+                    hasRoot = true
                 },
             )
 
@@ -141,10 +206,17 @@ private fun HomeScreen(
     hasRoot: Boolean?,
     currentShape: IconShape?,
     themedIcons: Boolean?,
+    labelsHidden: Boolean?,
+    gridTitle: String?,
+    twoLineLabels: Boolean,
     moduleVersion: String?,
     moduleInstalled: Boolean?,
     snackbar: SnackbarHostState,
     onOpenShapes: () -> Unit,
+    onLabelsChanged: (Boolean) -> Unit,
+    onThemedChanged: (Boolean) -> Unit,
+    onOpenGrids: () -> Unit,
+    onTwoLineChanged: (Boolean) -> Unit,
     onRestart: () -> Unit,
     onClearCache: () -> Unit,
     onRefresh: () -> Unit,
@@ -204,22 +276,59 @@ private fun HomeScreen(
                         },
                         icon = Icons.Rounded.Star,
                         trailing = {
-                            StatusPill(
-                                text = when (themedIcons) {
-                                    true -> "On"
-                                    false -> "Off"
-                                    null -> "…"
-                                },
-                                container = if (themedIcons == true) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceContainerHighest
-                                },
-                                content = if (themedIcons == true) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
+                            Switch(
+                                checked = themedIcons == true,
+                                onCheckedChange = onThemedChanged,
+                                enabled = hasRoot == true,
+                            )
+                        },
+                    )
+                }
+            }
+
+            item { SectionHeader("Home screen") }
+            item {
+                SettingCard {
+                    SettingRow(
+                        title = "App grid",
+                        subtitle = gridTitle ?: "Choose columns and rows",
+                        icon = Icons.Rounded.List,
+                        trailing = {
+                            Icon(
+                                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        onClick = onOpenGrids,
+                    )
+                    SettingRow(
+                        title = "Desktop icon labels",
+                        subtitle = "Show app names under home screen icons",
+                        icon = Icons.Rounded.Info,
+                        trailing = {
+                            Switch(
+                                checked = labelsHidden == false,
+                                onCheckedChange = { shown -> onLabelsChanged(!shown) },
+                                enabled = hasRoot == true && labelsHidden != null,
+                            )
+                        },
+                    )
+                }
+            }
+
+            item { SectionHeader("App drawer") }
+            item {
+                SettingCard {
+                    SettingRow(
+                        title = "Two-line app labels",
+                        subtitle = "Let long app names wrap onto a second line",
+                        icon = Icons.Rounded.List,
+                        trailing = {
+                            Switch(
+                                checked = twoLineLabels,
+                                onCheckedChange = onTwoLineChanged,
+                                enabled = hasRoot == true,
                             )
                         },
                     )
