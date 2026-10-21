@@ -23,7 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Share
@@ -79,23 +79,9 @@ fun PETweaksApp() {
 
     fun refresh() {
         scope.launch {
-            val info = withContext(Dispatchers.IO) {
-                val root = RootShell.hasRoot()
-                if (!root) {
-                    LauncherInfo(false, null, null, null, null)
-                } else {
-                    val pkg = RootShell.currentShapePackage()
-                    LauncherInfo(
-                        hasRoot = true,
-                        shape = Shapes.byPackage(pkg ?: ""),
-                        themedIcons = RootShell.themedIconsEnabled(),
-                        moduleVersion = RootShell.moduleVersion(),
-                        moduleInstalled = RootShell.moduleInstalled(),
-                    )
-                }
-            }
+            val info = withContext(Dispatchers.IO) { RootShell.loadState() }
             hasRoot = info.hasRoot
-            currentShape = info.shape
+            currentShape = Shapes.byPackage(info.shapePackage ?: "")
             themedIcons = info.themedIcons
             moduleVersion = info.moduleVersion
             moduleInstalled = info.moduleInstalled
@@ -150,14 +136,6 @@ fun PETweaksApp() {
     }
 }
 
-private data class LauncherInfo(
-    val hasRoot: Boolean,
-    val shape: IconShape?,
-    val themedIcons: Boolean?,
-    val moduleVersion: String?,
-    val moduleInstalled: Boolean?,
-)
-
 @Composable
 private fun HomeScreen(
     hasRoot: Boolean?,
@@ -210,7 +188,7 @@ private fun HomeScreen(
                         },
                         trailing = {
                             Icon(
-                                Icons.Rounded.KeyboardArrowRight,
+                                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

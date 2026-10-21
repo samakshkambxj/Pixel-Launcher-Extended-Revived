@@ -7,14 +7,24 @@ data class ShellResult(val code: Int, val output: String) {
     val ok: Boolean get() = code == 0
 }
 
+/** Everything the home screen needs, read in a single root call. */
+data class LauncherState(
+    val hasRoot: Boolean,
+    val shapePackage: String?,
+    val themedIcons: Boolean,
+    val moduleVersion: String?,
+    val moduleInstalled: Boolean,
+)
+
 /**
- * Thin root shell used for the handful of privileged operations the launcher
- * tweaks need. Everything runs through `su -c`, so Magisk / KernelSU decide
- * whether to grant it.
+ * Thin root shell for the handful of privileged operations the launcher tweaks
+ * need. Everything runs through `su -c`, so Magisk / KernelSU decide whether to
+ * grant it. State is read in one batch to avoid a stack of root prompts.
  */
 object RootShell {
 
     private const val TIMEOUT_SECONDS = 25L
+    private const val SEPARATOR = "@@pe@@"
 
     fun su(command: String): ShellResult {
         return try {
@@ -45,59 +55,56 @@ object RootShell {
         }
     }
 
-    /** Returns true when root is usable. */
-    fun hasRoot(): Boolean = su("id -u").output.trim().contains("0")
+    fun loadState(): LauncherState {
+        val result = su(
+            "id -u; echo $SEPARATOR; cmd overlay list --user 0; echo $SEPARATOR; " +
+                "cat ${moduleProp().absolutePath} 2>/dev/null; echo $SEPARATOR; " +
+                "test -d /data/adb/modules/$MODULE_ID && echo installed",
+        )
 
-    /**
-     * Enabled overlay packages, one per line, as reported by `cmd overlay list`.
-     * Lines look like `[x] com.android.theme.icon.mallow`.
-     */
-    private fun enabledOverlays(): List<String> =
-        su("cmd overlay list --user 0")
-            .output
+        val parts = result.output.split(SEPARATOR)
+        val uid = parts.getOrNull(0)?.trim().orEmpty()
+        val hasRoot = uid == "0"
+
+        val overlays = parts.getOrNull(1).orEmpty()
             .lineSequence()
             .map { it.trim() }
             .filter { it.startsWith("[x]") }
             .map { it.removePrefix("[x]").trim() }
             .toList()
 
-    /** Currently applied shape overlay package, or null for the stock shape. */
-    fun currentShapePackage(): String? {
-        val enabled = enabledOverlays()
-        return Shapes.overlayPackages.firstOrNull { pkg -> enabled.any { it == pkg } }
-    }
+        val shape = Shapes.overlayPackages.firstOrNull { pkg -> overlays.contains(pkg) }
 
-    /** Static themed-icon overlay shipped by the module. */
-    fun themedIconsEnabled(): Boolean =
-        enabledOverlays().any { it == THEMED_ICONS_OVERLAY }
-
-    fun moduleVersion(): String? {
-        val prop = File("/data/adb/modules/$MODULE_ID/module.prop")
-        val result = su("cat ${prop.absolutePath}")
-        if (!result.ok) return null
-        return result.output.lineSequence()
+        val version = parts.getOrNull(2).orEmpty()
+            .lineSequence()
             .firstOrNull { it.startsWith("version=") }
             ?.removePrefix("version=")
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
+
+        val installed = parts.getOrNull(3).orEmpty().contains("installed")
+
+        return LauncherState(
+            hasRoot = hasRoot,
+            shapePackage = shape,
+            themedIcons = overlays.contains(THEMED_ICONS_OVERLAY),
+            moduleVersion = version,
+            moduleInstalled = installed,
+        )
     }
 
-    fun moduleInstalled(): Boolean = su("test -d /data/adb/modules/$MODULE_ID && echo yes")
-        .output
-        .contains("yes")
-
     /**
-     * Applies a shape everywhere and clears the launcher icon cache so both the
-     * workspace and the drawer pick it up immediately.
+     * Applies a shape everywhere: disable the other shapes, enable the chosen
+     * one, clear the launcher icon cache and restart the launcher. The disable
+     * pass avoids depending on overlay priority when several are enabled.
      */
     fun applyShape(overlayPackage: String?): ShellResult {
         val command = buildString {
-            if (overlayPackage == null) {
-                Shapes.overlayPackages.forEach {
-                    append("cmd overlay disable --user 0 $it; ")
-                }
-            } else {
-                append("cmd overlay enable-exclusive --user 0 $overlayPackage; ")
+            Shapes.overlayPackages
+                .filter { it != overlayPackage }
+                .forEach { append("cmd overlay disable --user 0 $it; ") }
+            if (overlayPackage != null) {
+                append("cmd overlay enable --user 0 $overlayPackage; ")
             }
             append("rm -f ${Shapes.LAUNCHER_DATA}/databases/app_icons.db*; ")
             append("am force-stop ${Shapes.LAUNCHER_PACKAGE}")
@@ -109,6 +116,8 @@ object RootShell {
 
     fun clearIconCache(): ShellResult =
         su("rm -f ${Shapes.LAUNCHER_DATA}/databases/app_icons.db*; am force-stop ${Shapes.LAUNCHER_PACKAGE}")
+
+    private fun moduleProp() = File("/data/adb/modules/$MODULE_ID/module.prop")
 
     const val MODULE_ID = "PE_Revived"
     const val THEMED_ICONS_OVERLAY = "com.romcontrolicons.nexuslauncher"
