@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -32,7 +33,7 @@ fun ShapeGlyph(
     strokeColor: Color? = null,
 ) {
     Box(modifier = modifier) {
-        Canvas(Modifier.fillMaxSize()) {
+        Canvas(Modifier.fillMaxSize().clipToBounds()) {
             drawGlyph(glyph, color, strokeColor)
         }
     }
@@ -49,7 +50,7 @@ fun DrawScope.drawGlyph(glyph: Glyph, color: Color, strokeColor: Color? = null) 
 
     when (glyph) {
         Glyph.Default -> {
-            val inset = rect.inset(side * 0.16f)
+            val inset = rect.insetBy(side * 0.16f)
             drawPath(
                 superellipse(inset, 3.2f),
                 color = strokeColor ?: color,
@@ -60,13 +61,13 @@ fun DrawScope.drawGlyph(glyph: Glyph, color: Color, strokeColor: Color? = null) 
                     ),
                 ),
             )
-            drawPath(superellipse(rect.inset(side * 0.34f), 4f), color)
+            drawPath(superellipse(rect.insetBy(side * 0.34f), 4f), color)
         }
 
-        Glyph.Squircle -> drawPath(superellipse(rect.inset(side * 0.04f), 4f), color)
-        Glyph.Mallow -> drawPath(superellipse(rect.inset(side * 0.04f), 5f), color)
-        Glyph.Samsung -> drawPath(superellipse(rect.inset(side * 0.04f), 3.1f), color)
-        Glyph.Pebble -> drawPath(superellipse(rect.inset(side * 0.05f), 2.6f), color)
+        Glyph.Squircle -> drawPath(superellipse(rect.insetBy(side * 0.04f), 4f), color)
+        Glyph.Mallow -> drawPath(superellipse(rect.insetBy(side * 0.04f), 5f), color)
+        Glyph.Samsung -> drawPath(superellipse(rect.insetBy(side * 0.04f), 3.1f), color)
+        Glyph.Pebble -> drawPath(superellipse(rect.insetBy(side * 0.05f), 2.6f), color)
 
         Glyph.Circle -> drawCircle(
             color = color,
@@ -74,8 +75,8 @@ fun DrawScope.drawGlyph(glyph: Glyph, color: Color, strokeColor: Color? = null) 
             center = rect.center,
         )
 
-        Glyph.RoundedRect -> drawPath(roundedRect(rect.inset(side * 0.05f), side * 0.26f), color)
-        Glyph.Square -> drawPath(roundedRect(rect.inset(side * 0.06f), side * 0.10f), color)
+        Glyph.RoundedRect -> drawPath(roundedRect(rect.insetBy(side * 0.05f), side * 0.26f), color)
+        Glyph.Square -> drawPath(roundedRect(rect.insetBy(side * 0.06f), side * 0.10f), color)
         Glyph.Stretched -> drawPath(
             roundedRect(
                 Rect(
@@ -89,26 +90,23 @@ fun DrawScope.drawGlyph(glyph: Glyph, color: Color, strokeColor: Color? = null) 
             color,
         )
 
-        Glyph.Hexagon -> drawPath(polygon(rect.inset(side * 0.05f), 6, PI.toFloat() / 6f), color)
+        Glyph.Hexagon -> drawPath(polygon(rect.insetBy(side * 0.05f), 6, PI.toFloat() / 6f), color)
         Glyph.RoundedHexagon -> drawPath(
-            roundedPolygon(rect.inset(side * 0.05f), 6, PI.toFloat() / 6f, side * 0.08f),
+            roundedPolygon(rect.insetBy(side * 0.05f), 6, PI.toFloat() / 6f, side * 0.08f),
             color,
         )
 
-        Glyph.Flower -> drawPath(flower(rect.inset(side * 0.03f)), color)
-        Glyph.Cloudy -> drawPath(cloudy(rect.inset(side * 0.03f)), color)
-        Glyph.Leaf -> drawPath(leaf(rect.inset(side * 0.05f)), color)
-        Glyph.Teardrop -> drawPath(teardrop(rect.inset(side * 0.04f)), color)
-        Glyph.Vessel -> drawPath(vessel(rect.inset(side * 0.05f)), color)
-        Glyph.Tapered -> drawPath(tapered(rect.inset(side * 0.04f)), color)
+        Glyph.Flower -> drawPath(flower(rect.insetBy(side * 0.03f)), color)
+        Glyph.Cloudy -> drawPath(cloudy(rect.insetBy(side * 0.03f)), color)
+        Glyph.Leaf -> drawPath(leaf(rect.insetBy(side * 0.05f)), color)
+        Glyph.Teardrop -> drawPath(teardrop(rect.insetBy(side * 0.04f)), color)
+        Glyph.Vessel -> drawPath(vessel(rect.insetBy(side * 0.05f)), color)
+        Glyph.Tapered -> drawPath(tapered(rect.insetBy(side * 0.04f)), color)
     }
 }
 
-private fun Rect.inset(fraction: Float): Rect {
-    val dx = width * fraction
-    val dy = height * fraction
-    return Rect(left + dx, top + dy, right - dx, bottom - dy)
-}
+private fun Rect.insetBy(amount: Float): Rect =
+    Rect(left + amount, top + amount, right - amount, bottom - amount)
 
 /** Superellipse (Lamé curve); n = 2 is a circle, larger n approaches a squircle. */
 private fun superellipse(rect: Rect, n: Float): Path {
