@@ -9,11 +9,14 @@
 ### Home screen
 - Extra grid sizes (5x7, 5x8, 6x5–6x9) in the Layout picker
 - Separate home columns and rows
+- Fixed landscape mode
+- Icon labels on desktop
+- Add icon to Home and Minus One switches
+- Long-press menu can open app shortcuts or system actions first
+- Set Pixel Launcher as the default Home app from PE Tweaks
 - Lock layout
 - Free widget resizing
 - Wallpaper zooming toggle
-- Icon labels on desktop
-- Add icon to Home and Minus One switches
 - Hide status bar, top shadow, page indicator (with dark variants)
 - Hide At a Glance
 - Disable dock, dock spacing
@@ -31,6 +34,7 @@
 
 ### Icons
 - 1250+ themed icons, themed icon packs, force custom colors
+- Notification dots on/off
 - Icon packs with fallback order, per-app icons and themed icons
 - 16 extra icon shapes + custom shape, size, and text size
 - Rename apps and shortcuts, home-screen shortcut icons
@@ -55,6 +59,8 @@
 - Icon shape picker with live previews, applied to home screen and drawer
 - Launcher switches, app grid picker, drawer and home options
 - Root and module status, launcher restart, icon cache rebuild
+- KernelSU mount health check with a one-tap Kernel Umount fix
+- WebUI shortcut opens PE Tweaks; shape picker stays as a fallback
 
 ### Launcher internals
 - Hidden flags, developer options
@@ -68,10 +74,13 @@
 |---|---|
 | Extra grid sizes | ✅ |
 | Home columns and rows | ✅ |
+| Fixed landscape mode | ✅ (PE Tweaks toggle) |
 | Lock layout | ❌ |
 | Free widget resizing | ❌ |
 | Wallpaper zooming toggle | ❌ |
 | Icon labels on desktop | ✅ (PE Tweaks toggle) |
+| Long-press menu section | ✅ (PE Tweaks toggle) |
+| Set as default Home | ✅ (PE Tweaks action) |
 | Hide status bar / shadow / indicator | ❌ |
 | Hide At a Glance | ❌ |
 | Disable dock / spacing | ❌ |
@@ -85,9 +94,12 @@
 | Add icon to Home, Minus One, overview suggestions | ✅ |
 | Hide apps, hidden search, popup toggle | ❌ |
 | Themed icons and packs | ✅ |
+| Notification dots | ✅ (PE Tweaks toggle) |
 | Icon packs with fallback, per-app icons | ❌ |
 | Extra icon shapes (app + WebUI picker) | ✅ |
 | PE Tweaks companion app | ✅ |
+| KernelSU mount health + one-tap fix | ✅ |
+| WebUI open PE Tweaks shortcut | ✅ |
 | Custom shape / size / text size | ❌ |
 | Rename apps, shortcut icons, badge | ❌ |
 | Popup edit / kill / uninstall | ❌ |
@@ -135,7 +147,7 @@
 3. Flash in Magisk / KernelSU and answer the volume-key prompts (Up = switch, Down = confirm). If your keys don't register, the installer aborts — use the Manual or Customize variant instead.
 4. Reboot. Set **Pixel Launcher Extended** as Home in Settings > Apps > Default apps.
 5. Open **PE Tweaks** and grant root when asked (Icons → Shape to pick an icon shape).
-6. KernelSU users: in the manager's **App Profiles**, make sure **Unmount modules is OFF** for Pixel Launcher (and the wallpaper app), or the module's files stay invisible to the launcher. Grant root when companion apps ask.
+6. KernelSU / KSU Next users: make sure **Unmount modules** is OFF for Pixel Launcher and the wallpaper app in **App Profiles**. If the launcher still crashes after a reboot, turn KernelSU's global **Kernel Umount** feature off (`su -c 'ksud feature set kernel_umount 0'`) and relaunch it. With that feature on, KernelSU strips the module's mounts from app processes, so the launcher cannot read its own APK. Grant root when companion apps ask.
 
 ## Variants
 - **Offline Installer** (50+ MB): everything inside, no internet needed while flashing, volume-key choices.
@@ -175,7 +187,8 @@ Then type **PLE** and pick a variant (offline / online / customize / manual). Lo
 ## Troubleshooting
 - **Installer picks Yes everywhere / keys ignored:** volume detection failed; it now aborts instead — use Manual or Customize.
 - **Flashed but nothing changed:** root manager may hide module files from apps (KernelSU App Profiles → disable "Unmount modules" for the launcher), then reboot.
-- **Launcher crashes at boot after flashing:** grab `adb logcat -b crash -d` and report it with your ROM + variant.
+- **Launcher crashes at boot after flashing (KernelSU / KSU Next):** if logcat shows `Failed to open APK '/system_ext/priv-app/NexusLauncherRelease/NexusLauncherRelease.apk': No such file or directory`, the module is mounted in `init` but not in app namespaces. Turn off KernelSU's global **Kernel Umount** feature with `su -c 'ksud feature set kernel_umount 0'` (or disable **Unmount modules** for `com.google.android.apps.nexuslauncher` and `com.google.android.apps.wallpaper`), then relaunch. `ksud feature check kernel_umount` shows the current state. This is a root-manager hide feature, not a module file-permission problem.
+- **Launcher still crashes after the above:** grab `adb logcat -b crash -d` and report it with your ROM + variant.
 - **Weather/Select in recents broken:** update Google app, Play Services, System Intelligence, WebView from Play Store; try the At a Glance Enhancer.
 - **Material You stuck:** `su -c settings delete secure theme_customization_overlay_packages` (per-boot on some ROMs).
 - **Mods app stuck at loading:** force-stop and relaunch it.

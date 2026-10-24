@@ -23,14 +23,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.List
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -79,6 +82,9 @@ fun PETweaksApp() {
     var labelsHidden by remember { mutableStateOf<Boolean?>(null) }
     var gridTitle by remember { mutableStateOf<String?>(null) }
     val prefValues = remember { mutableStateMapOf<String, Boolean>() }
+    var notificationDots by remember { mutableStateOf<Boolean?>(null) }
+    var popupSection by remember { mutableStateOf<String?>(null) }
+    var kernelUmountRunning by remember { mutableStateOf<Boolean?>(null) }
     var moduleVersion by remember { mutableStateOf<String?>(null) }
     var moduleInstalled by remember { mutableStateOf<Boolean?>(null) }
 
@@ -95,6 +101,9 @@ fun PETweaksApp() {
             gridTitle = info.gridTitle
             prefValues.clear()
             prefValues.putAll(info.prefValues)
+            notificationDots = info.notificationDots
+            popupSection = info.popupSection
+            kernelUmountRunning = info.kernelUmountEnabled
             moduleVersion = info.moduleVersion
             moduleInstalled = info.moduleInstalled
         }
@@ -136,6 +145,42 @@ fun PETweaksApp() {
         }
     }
 
+    fun setDots(enabled: Boolean) {
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { RootShell.setNotificationDots(enabled) }
+            if (result.ok) {
+                notificationDots = enabled
+                snackbar.showSnackbar(if (enabled) "Notification dots on" else "Notification dots off")
+            } else {
+                snackbar.showSnackbar("Failed. Allow root access in your manager.")
+            }
+        }
+    }
+
+    fun fixMounts() {
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { RootShell.disableKernelUmount() }
+            if (result.ok) {
+                kernelUmountRunning = false
+                snackbar.showSnackbar("Kernel Umount disabled · open Home to start the launcher")
+            } else {
+                snackbar.showSnackbar("Could not change KernelSU. Update KernelSU Next and retry.")
+            }
+        }
+    }
+
+    fun setPopupSection(section: String) {
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { RootShell.setPopupSection(section) }
+            if (result.ok) {
+                popupSection = section
+                snackbar.showSnackbar("Long-press menu updated · press Home to reload")
+            } else {
+                snackbar.showSnackbar("Failed. Allow root access in your manager.")
+            }
+        }
+    }
+
     fun runRootAction(message: String, action: () -> ShellResult) {
         scope.launch {
             val result = withContext(Dispatchers.IO) { action() }
@@ -162,14 +207,21 @@ fun PETweaksApp() {
                 labelsHidden = labelsHidden,
                 gridTitle = gridTitle,
                 prefValues = prefValues,
+                notificationDots = notificationDots,
+                popupSection = popupSection,
+                kernelUmountRunning = kernelUmountRunning,
                 moduleVersion = moduleVersion,
                 moduleInstalled = moduleInstalled,
                 snackbar = snackbar,
                 onOpenShapes = { screen = Screen.Shapes },
                 onLabelsChanged = ::setLabels,
                 onThemedChanged = ::setThemed,
+                onDotsChanged = ::setDots,
+                onPopupSectionChanged = ::setPopupSection,
                 onOpenGrids = { screen = Screen.Grids },
                 onPrefChanged = ::setPref,
+                onFixMounts = ::fixMounts,
+                onSetDefaultHome = { runRootAction("Pixel Launcher is now the default Home app", RootShell::setDefaultHome) },
                 onRestart = { runRootAction("Launcher restarted", RootShell::restartLauncher) },
                 onClearCache = { runRootAction("Icon cache cleared", RootShell::clearIconCache) },
                 onRefresh = {
@@ -208,14 +260,21 @@ private fun HomeScreen(
     labelsHidden: Boolean?,
     gridTitle: String?,
     prefValues: Map<String, Boolean>,
+    notificationDots: Boolean?,
+    popupSection: String?,
+    kernelUmountRunning: Boolean?,
     moduleVersion: String?,
     moduleInstalled: Boolean?,
     snackbar: SnackbarHostState,
     onOpenShapes: () -> Unit,
     onLabelsChanged: (Boolean) -> Unit,
     onThemedChanged: (Boolean) -> Unit,
+    onDotsChanged: (Boolean) -> Unit,
+    onPopupSectionChanged: (String) -> Unit,
     onOpenGrids: () -> Unit,
     onPrefChanged: (String, Boolean) -> Unit,
+    onFixMounts: () -> Unit,
+    onSetDefaultHome: () -> Unit,
     onRestart: () -> Unit,
     onClearCache: () -> Unit,
     onRefresh: () -> Unit,
@@ -236,6 +295,13 @@ private fun HomeScreen(
                 HeroCard(currentShape)
                 Spacer(Modifier.height(20.dp))
                 StatusCard(hasRoot)
+            }
+
+            if (kernelUmountRunning == true) {
+                item {
+                    Spacer(Modifier.height(16.dp))
+                    MountWarningCard(onFix = onFixMounts)
+                }
             }
 
             item { SectionHeader("Icons") }
@@ -282,6 +348,22 @@ private fun HomeScreen(
                             )
                         },
                     )
+                    SettingRow(
+                        title = "Notification dots",
+                        subtitle = when (notificationDots) {
+                            true -> "Show a dot when an app has a notification"
+                            false -> "Dots are hidden"
+                            null -> "Checking…"
+                        },
+                        icon = Icons.Rounded.Notifications,
+                        trailing = {
+                            Switch(
+                                checked = notificationDots == true,
+                                onCheckedChange = onDotsChanged,
+                                enabled = hasRoot == true && notificationDots != null,
+                            )
+                        },
+                    )
                 }
             }
 
@@ -314,6 +396,30 @@ private fun HomeScreen(
                         },
                     )
                     SettingRow(
+                        title = "Long-press menu",
+                        subtitle = if (popupSection == RootShell.POPUP_SECTION_DEEP) {
+                            "App shortcuts open first"
+                        } else {
+                            "System actions open first"
+                        },
+                        icon = Icons.Rounded.List,
+                        trailing = {
+                            Switch(
+                                checked = popupSection == RootShell.POPUP_SECTION_DEEP,
+                                onCheckedChange = { deep ->
+                                    onPopupSectionChanged(
+                                        if (deep) {
+                                            RootShell.POPUP_SECTION_DEEP
+                                        } else {
+                                            RootShell.POPUP_SECTION_SYSTEM
+                                        },
+                                    )
+                                },
+                                enabled = hasRoot == true,
+                            )
+                        },
+                    )
+                    SettingRow(
                         title = "Add icon to Home screen",
                         subtitle = "Place a shortcut when a new app is installed",
                         icon = Icons.Rounded.Add,
@@ -336,6 +442,20 @@ private fun HomeScreen(
                                 checked = prefValues[RootShell.PREF_MINUS_ONE] ?: true,
                                 onCheckedChange = {
                                     onPrefChanged(RootShell.PREF_MINUS_ONE, it)
+                                },
+                                enabled = hasRoot == true,
+                            )
+                        },
+                    )
+                    SettingRow(
+                        title = "Fixed landscape",
+                        subtitle = "Keep the home screen sideways even when the phone is upright",
+                        icon = Icons.Rounded.Info,
+                        trailing = {
+                            Switch(
+                                checked = prefValues[RootShell.PREF_FIXED_LANDSCAPE] ?: false,
+                                onCheckedChange = {
+                                    onPrefChanged(RootShell.PREF_FIXED_LANDSCAPE, it)
                                 },
                                 enabled = hasRoot == true,
                             )
@@ -430,6 +550,12 @@ private fun HomeScreen(
             item {
                 SettingCard {
                     SettingRow(
+                        title = "Set as default Home",
+                        subtitle = "Make Pixel Launcher the app that opens with Home",
+                        icon = Icons.Rounded.Home,
+                        onClick = onSetDefaultHome,
+                    )
+                    SettingRow(
                         title = "Restart launcher",
                         subtitle = "Reload Pixel Launcher after changes",
                         icon = Icons.Rounded.Refresh,
@@ -493,6 +619,35 @@ private fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun MountWarningCard(onFix: () -> Unit) {
+    Surface(
+        onClick = onFix,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Rounded.Warning, contentDescription = null, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Launcher mounts are blocked", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "KernelSU's Kernel Umount feature hides this module from apps. " +
+                        "Tap to disable it and restore the launcher.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
         }
     }
 }

@@ -10,6 +10,9 @@
   h1 { font-size: 20px; margin: 4px 0 2px; }
   .sub { color: #938f99; font-size: 13px; margin-bottom: 12px; }
   .status { background: #1d1b20; border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: 14px; }
+  .app { display: block; width: 100%; background: #4f378b; color: #eaddff; border: 0; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .app:active { background: #6750a4; }
+  .app[hidden] { display: none; }
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .tile { background: #1d1b20; border: 2px solid transparent; border-radius: 14px; padding: 12px 6px; text-align: center; font-size: 13px; cursor: pointer; }
   .tile:active { background: #2b2930; }
@@ -22,6 +25,7 @@
 <h1>PE-Revived</h1>
 <div class="sub">Icon shapes — tap to apply everywhere</div>
 <div class="status" id="status">Current: …</div>
+<button class="app" id="openApp" hidden onclick="openTweaks()">Open PE Tweaks</button>
 <div class="grid" id="grid"></div>
 <div class="note">If home icons don't follow, set Wallpaper &amp; style &gt; Icons back to Default (a system pick overrides overlays on the home screen).</div>
 <script>
@@ -45,6 +49,8 @@ var SHAPES = [
 ["Vessel","com.android.theme.icon.vessel","M12.97,0 C8.41,0 4.14,2.55 2.21,6.68 -1.03,13.61 -0.71,21.78 3.16,28.46 4.89,31.46 4.89,35.2 3.16,38.2 -1.05,45.48 -1.05,54.52 3.16,61.8 4.89,64.8 4.89,68.54 3.16,71.54 -0.71,78.22 -1.03,86.39 2.21,93.32 4.14,97.45 8.41,100 12.97,100 21.38,100 78.62,100 87.03,100 91.59,100 95.85,97.45 97.79,93.32 101.02,86.39 100.71,78.22 96.84,71.54 95.1,68.54 95.1,64.8 96.84,61.8 101.05,54.52 101.05,45.48 96.84,38.2 95.1,35.2 95.1,31.46 96.84,28.46 100.71,21.78 101.02,13.61 97.79,6.68 95.85,2.55 91.59,0 87.03,0 78.62,0 21.38,0 12.97,0 Z"]
 ];
 var PKGS = SHAPES.slice(1).map(function (s) { return s[1]; });
+var APP_PACKAGE = "com.perevived.tweaks";
+var APP_ACTIVITY = APP_PACKAGE + "/.MainActivity";
 function svgFor(path) {
   if (!path) return '<svg viewBox="0 0 100 100" width="36" height="36"><circle cx="50" cy="50" r="46" fill="#d0bcff"/></svg>';
   return '<svg viewBox="0 0 100 100" width="36" height="36"><path d="' + path + '" fill="#d0bcff"/></svg>';
@@ -67,6 +73,22 @@ function toast(msg) {
   try { ksu.toast(msg); } catch (e) { /* not in manager */ }
 }
 
+function checkApp() {
+  run("pm list packages " + APP_PACKAGE).then(function (r) {
+    document.getElementById("openApp").hidden = r.stdout.indexOf("package:" + APP_PACKAGE) === -1;
+  }).catch(function () {
+    document.getElementById("openApp").hidden = true;
+  });
+}
+
+function openTweaks() {
+  run("am start -n " + APP_ACTIVITY).then(function (r) {
+    if (r.stderr && r.stderr.indexOf("Error") !== -1) toast("Could not open PE Tweaks");
+  }).catch(function () {
+    toast("Open this page from the KernelSU manager");
+  });
+}
+
 function refresh() {
   var status = document.getElementById("status");
   run("cmd overlay list --user 0 android").then(function (r) {
@@ -85,12 +107,10 @@ function refresh() {
 }
 
 function applyShape(label, pkg) {
-  var cmds;
-  if (pkg === null) {
-    cmds = PKGS.map(function (p) { return "cmd overlay disable --user 0 " + p; }).join(";");
-  } else {
-    cmds = "cmd overlay enable --user 0 " + pkg;
-  }
+  // Always disable every shape first so switching never leaves two overlays on.
+  var cmds = PKGS.filter(function (p) { return p !== pkg; })
+    .map(function (p) { return "cmd overlay disable --user 0 " + p; }).join(";");
+  if (pkg !== null) cmds += ";cmd overlay enable --user 0 " + pkg;
   // Drop cached icon bitmaps (layout untouched) so both home and drawer
   // re-render with the new mask, then restart the launcher.
   cmds += ";rm -f /data/data/com.google.android.apps.nexuslauncher/databases/app_icons.db*";
@@ -116,6 +136,7 @@ function applyShape(label, pkg) {
     grid.appendChild(d);
   });
   refresh();
+  checkApp();
 })();
 </script>
 </body>

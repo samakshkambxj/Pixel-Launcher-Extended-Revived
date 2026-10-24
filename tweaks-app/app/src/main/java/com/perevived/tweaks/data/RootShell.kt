@@ -18,6 +18,16 @@ data class LauncherState(
     val gridTitle: String?,
     /** Raw values of every launcher preference the app can switch. */
     val prefValues: Map<String, Boolean>,
+    /** Android's global notification-dot setting, null when it could not be read. */
+    val notificationDots: Boolean?,
+    /** Which section the long-press menu expands first: SYSTEM or DEEP. */
+    val popupSection: String?,
+    /**
+     * KernelSU's Kernel Umount feature. When true, module mounts are stripped from
+     * app processes and Pixel Launcher cannot read its own APK. Null when the
+     * device is not running KernelSU.
+     */
+    val kernelUmountEnabled: Boolean?,
 )
 
 /** One entry from the launcher's grid options list. */
@@ -76,7 +86,10 @@ object RootShell {
                 "content query --uri $PROVIDER/workspace_items_label_hidden; echo $SEPARATOR; " +
                 "content query --uri $PROVIDER/icon_themed; echo $SEPARATOR; " +
                 "content query --uri $PROVIDER/list_options; echo $SEPARATOR; " +
-                "cat $LAUNCHER_PREFS 2>/dev/null",
+                "cat $LAUNCHER_PREFS 2>/dev/null; echo $SEPARATOR; " +
+                "settings get secure notification_badging; echo $SEPARATOR; " +
+                "if command -v ksud >/dev/null 2>&1; then " +
+                "ksud feature get kernel_umount 2>/dev/null; else echo no-ksu; fi",
         )
 
         val parts = result.output.split(SEPARATOR)
@@ -116,6 +129,9 @@ object RootShell {
             prefValues = KNOWN_PREFS.mapNotNull { key ->
                 readPrefFromXml(prefsXml, key)?.let { key to it }
             }.toMap(),
+            notificationDots = parseSecureBoolean(parts.getOrNull(8)),
+            popupSection = readStringPrefFromXml(prefsXml, PREF_POPUP_SECTION),
+            kernelUmountEnabled = parseKernelUmount(parts.getOrNull(9)),
         )
     }
 
@@ -143,6 +159,9 @@ object RootShell {
         val match = Regex("name=\"$key\" value=\"(true|false)\"").find(xml) ?: return null
         return match.groupValues[1] == "true"
     }
+
+    private fun readStringPrefFromXml(xml: String, key: String): String? =
+        Regex("<string name=\"$key\">([^<]*)</string>").find(xml)?.groupValues?.get(1)
 
     /**
      * Write one boolean into the launcher's own preference file. The launcher is
@@ -183,10 +202,78 @@ object RootShell {
     fun setGrid(name: String): ShellResult =
         su("content update --uri $PROVIDER/default_grid --bind grid_name:s:$name")
 
+    /**
+     * Choose which section the long-press popup expands first. This is a String
+     * preference, so it cannot go through [setBooleanPref].
+     */
+    fun setPopupSection(section: String): ShellResult {
+        require(section == POPUP_SECTION_SYSTEM || section == POPUP_SECTION_DEEP)
+        val script = """
+            F=$LAUNCHER_PREFS
+            am force-stop $LAUNCHER_PKG
+            sleep 1
+            if [ -f "${'$'}F" ]; then
+              OWN=${'$'}(stat -c '%u:%g' "${'$'}F")
+              CTX=${'$'}(ls -Z "${'$'}F" 2>/dev/null | awk '{print ${'$'}1}')
+            else
+              mkdir -p "${'$'}(dirname "${'$'}F")"
+              printf '%s\n' "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>" '<map>' '</map>' > "${'$'}F"
+              OWN=${'$'}(stat -c '%u:%g' /data/user/0/$LAUNCHER_PKG)
+              CTX=${'$'}(ls -Z /data/user/0/$LAUNCHER_PKG 2>/dev/null | awk '{print ${'$'}1}')
+            fi
+            if grep -q "name=\"$PREF_POPUP_SECTION\"" "${'$'}F"; then
+              sed -i "s|<string name=\"$PREF_POPUP_SECTION\">[^<]*</string>|<string name=\"$PREF_POPUP_SECTION\">$section</string>|" "${'$'}F"
+            elif grep -q "</map>" "${'$'}F"; then
+              sed -i "s|</map>|<string name=\"$PREF_POPUP_SECTION\">$section</string></map>|" "${'$'}F"
+            else
+              sed -i "s|<map */>|<map><string name=\"$PREF_POPUP_SECTION\">$section</string></map>|" "${'$'}F"
+            fi
+            if [ -n "${'$'}OWN" ]; then chown "${'$'}OWN" "${'$'}F"; fi
+            chmod 600 "${'$'}F" 2>/dev/null
+            if [ -n "${'$'}CTX" ]; then chcon "${'$'}CTX" "${'$'}F" 2>/dev/null || true; fi
+            grep -o "<string name=\"$PREF_POPUP_SECTION\">[^<]*</string>" "${'$'}F"
+        """.trimIndent()
+        return su(script)
+    }
+
     private fun parseBoolean(block: String?): Boolean? {
         val match = Regex("boolean_value=(\\d)").find(block.orEmpty()) ?: return null
         return match.groupValues[1] == "1"
     }
+
+    /** `settings get secure` prints 1/0, or "null" when the setting is unset. */
+    private fun parseSecureBoolean(block: String?): Boolean? =
+        when (block.orEmpty().trim()) {
+            "1" -> true
+            "0" -> false
+            else -> null
+        }
+
+    /** KernelSU prints a "Value: 0/1" line; "no-ksu" means another root manager. */
+    private fun parseKernelUmount(block: String?): Boolean? {
+        val text = block.orEmpty()
+        if (text.contains("no-ksu")) return null
+        val match = Regex("Value:\\s*(\\d)").find(text) ?: return null
+        return match.groupValues[1] == "1"
+    }
+
+    /** Notification dots are a platform secure setting, shared by every launcher. */
+    fun setNotificationDots(enabled: Boolean): ShellResult =
+        su(
+            "settings put secure notification_badging ${if (enabled) 1 else 0}; " +
+                "settings get secure notification_badging",
+        )
+
+    /**
+     * KernelSU's global Kernel Umount hides module mounts from app processes. With
+     * it on, Pixel Launcher cannot open the APK this module mounts, so it crashes.
+     */
+    fun disableKernelUmount(): ShellResult =
+        su("ksud feature set kernel_umount 0; am force-stop $LAUNCHER_PKG")
+
+    /** Make Pixel Launcher the system default home app. */
+    fun setDefaultHome(): ShellResult =
+        su("cmd package set-home-activity $LAUNCHER_PKG/.NexusLauncherActivity")
 
     /** Hide or show icon labels on the workspace. Live update, no restart. */
     fun setLabelsHidden(hidden: Boolean): ShellResult =
@@ -237,6 +324,11 @@ object RootShell {
     const val PREF_ADD_ICON_TO_HOME = "pref_add_icon_to_home"
     const val PREF_WEB_SUGGESTIONS = "pref_allowWebResult"
     const val PREF_OVERVIEW_SUGGESTIONS = "pref_overview_action_suggestions"
+    const val PREF_FIXED_LANDSCAPE = "pref_fixed_landscape_mode"
+    const val PREF_POPUP_SECTION = "pref_expanded_popup_menu"
+
+    const val POPUP_SECTION_SYSTEM = "SYSTEM"
+    const val POPUP_SECTION_DEEP = "DEEP"
 
     val KNOWN_PREFS = listOf(
         PREF_TWO_LINE_LABELS,
@@ -246,5 +338,6 @@ object RootShell {
         PREF_ADD_ICON_TO_HOME,
         PREF_WEB_SUGGESTIONS,
         PREF_OVERVIEW_SUGGESTIONS,
+        PREF_FIXED_LANDSCAPE,
     )
 }

@@ -54,5 +54,6 @@ object Shapes {
     /** Overlay packages the module installs; used for reset and state detection. */
     val overlayPackages: List<String> = all.mapNotNull { it.overlayPackage }
 
-    fun byPackage(pkg: String): IconShape? = all.firstOrNull { it.overlayPackage == pkg }
+    fun byPackage(pkg: String): IconShape =
+        all.firstOrNull { it.overlayPackage == pkg } ?: all.first()
 }
